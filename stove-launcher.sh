@@ -119,6 +119,10 @@ done < <(collect_exec_paths)
 # 아이콘 중 하나라도 이 파일을 가리키면 설치된 것이다. 첫 후보만 보면, 아이콘이 여러 개일 때
 # 설치된 스크립트가 자기를 설치 대상으로 착각해 게임을 영영 안 띄운다.
 IS_INSTALLED=0
+# 패키지로 설치된 경우(/usr/bin 등)는 자기 복제를 하지 않고 바로 런처로 동작한다.
+case "$SELF" in
+    /usr/*|/opt/*) IS_INSTALLED=1 ;;
+esac
 for p in ${EXEC_PATHS+"${EXEC_PATHS[@]}"}; do
     if [ "$SELF" = "$(readlink -f "$p" 2>/dev/null)" ]; then
         IS_INSTALLED=1
@@ -248,6 +252,27 @@ EOF
     exit 0
 fi
 
+# 패키지로 설치된 경우 앱 목록 아이콘은 기본 이미지다. 이 컴퓨터에 STOVE 아이콘이
+# 있으면 그걸 쓰도록 사용자 레벨 .desktop을 만들어 시스템 항목보다 우선시킨다.
+# (STOVE 로고를 패키지에 넣어 배포하지 않기 위한 방법이다.)
+adopt_local_icon() {
+    local sys="/usr/share/applications/io.github._07lee.LostArkStoveLauncherFix.desktop"
+    local user="$HOME/.local/share/applications/io.github._07lee.LostArkStoveLauncherFix.desktop"
+    [ -f "$sys" ] || return 0
+    [ -f "$user" ] && return 0
+
+    local icon
+    icon="$(find_stove_icon || true)"
+    [ -n "$icon" ] || return 0
+    case "$icon" in io.github._07lee.*) return 0 ;; esac
+
+    mkdir -p "$(dirname "$user")" || return 0
+    { grep -v '^Icon=' "$sys"; printf 'Icon=%s\n' "$icon"; } > "$user" || return 0
+    chmod +x "$user" 2>/dev/null
+    command -v update-desktop-database >/dev/null 2>&1 && \
+        update-desktop-database "$(dirname "$user")" 2>/dev/null
+    log "adopted local STOVE icon: $icon"
+}
 # ── 여기서부터는 STOVE를 띄우는 부분 ──
 # 설정 파일의 각 줄이 ${VAR:=...} 형태라, 셸에서 export한 값이 그대로 이긴다.
 # shellcheck disable=SC1090
@@ -256,6 +281,10 @@ fi
 LOG_FILE="${STOVE_LOG_FILE:-${XDG_STATE_HOME:-$HOME/.local/state}/stove-launcher/stove-autofix.log}"
 mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null
 log() { echo "$(date '+%F %T') $*" >> "$LOG_FILE" 2>/dev/null; }
+
+case "$SELF" in
+    /usr/*|/opt/*) adopt_local_icon ;;
+esac
 
 WINEPREFIX="${WINEPREFIX:-$HOME/.wine-stove-staging}"
 

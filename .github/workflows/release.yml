@@ -1,12 +1,15 @@
 name: Release
 
 on:
-  # GitHub의 Actions 탭에서 "Run workflow" 버튼을 누르면 그날 날짜로 릴리즈한다.
   workflow_dispatch:
-  # 태그를 직접 붙여 올릴 수도 있다.
+    inputs:
+      version:
+        description: "패키지 버전 (예: 1.0.1)"
+        required: true
+        default: "1.0.0"
   push:
     tags:
-      - "*"
+      - "v*"
 
 permissions:
   contents: write
@@ -16,49 +19,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Build single-file installer (.desktop)
-        run: |
-          chmod +x scripts/build-installer.sh
-          ./scripts/build-installer.sh
-
-      - name: Verify installer payload
-        run: |
-          set -euo pipefail
-          # Exec= 안의 base64를 다시 꺼내 원본 스크립트와 일치하는지, 그리고
-          # 꺼낸 스크립트의 문법이 온전한지 확인한다.
-          payload="$(grep -m1 '^Exec=' dist/STOVE-launcher-fix.desktop \
-            | sed 's/.*base64 -d <<< "//; s/".*//')"
-          printf '%s' "$payload" | base64 -d > /tmp/decoded.sh
-          cmp /tmp/decoded.sh stove-launcher.sh
-          bash -n /tmp/decoded.sh
-          echo "payload OK"
-
-      - name: Decide release tag
-        id: tag
+      - name: Decide version
+        id: ver
         run: |
           set -euo pipefail
           if [ "${{ github.ref_type }}" = "tag" ]; then
-            tag="${{ github.ref_name }}"
+            version="${{ github.ref_name }}"
+            version="${version#v}"
           else
-            # 한국 시간 기준 날짜. 같은 날 다시 올리면 .1, .2 로 이어붙인다.
-            base="$(TZ=Asia/Seoul date +%Y.%m.%d)"
-            tag="$base"
-            n=0
-            while git rev-parse -q --verify "refs/tags/$tag" >/dev/null; do
-              n=$((n + 1))
-              tag="$base.$n"
-            done
+            version="${{ inputs.version }}"
           fi
-          echo "name=$tag" >> "$GITHUB_OUTPUT"
-          echo "릴리즈 태그: $tag"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build package
+        run: |
+          chmod +x scripts/build-deb.sh
+          ./scripts/build-deb.sh "${{ steps.ver.outputs.version }}"
+
+      - name: Verify package
+        run: |
+          set -euo pipefail
+          deb="dist/lostark-stove-launcher-fix_${{ steps.ver.outputs.version }}_all.deb"
+          mkdir -p /tmp/pkg
+          dpkg-deb -x "$deb" /tmp/pkg
+          cmp /tmp/pkg/usr/bin/stove-launcher-fix stove-launcher.sh
+          bash -n /tmp/pkg/usr/bin/stove-launcher-fix
+          sudo apt-get install -y -qq desktop-file-utils >/dev/null
+          desktop-file-validate /tmp/pkg/usr/share/applications/*.desktop
+          echo "package OK"
 
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.name }}
-          name: ${{ steps.tag.outputs.name }}
-          files: dist/STOVE-launcher-fix.desktop
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: ${{ steps.ver.outputs.tag }}
+          files: dist/lostark-stove-launcher-fix_${{ steps.ver.outputs.version }}_all.deb
           generate_release_notes: true

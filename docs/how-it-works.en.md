@@ -30,7 +30,7 @@ This is a workaround: it aligns the version number to dodge the crashing path. I
 
 ## What the installer does
 
-`stove-launcher.sh` is its own installer. Run from anywhere other than its installed location it installs itself; run from the installed location it launches STOVE.
+`stove-launcher.sh` is its own installer. Run from anywhere other than its installed location it installs itself; run from the installed location it launches STOVE. Installed from the `.deb` it lives in `/usr/bin`, and anything under a system path always runs as the launcher, never as the installer.
 
 Installing, it searches `~/.local/share/applications`, your localized desktop folder (found via `xdg-user-dir`, so `~/바탕화면` and the like work), and `~/Desktop` for `.desktop` files with `stove` in the name, and reads each `Exec=` target. It replaces the first target that is safe to replace — a regular, writable file under your home directory that starts with `#!` — after copying it to `<path>.bak.<timestamp>`.
 

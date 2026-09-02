@@ -2,15 +2,13 @@
 
 [한국어](../README.md) · English
 
-Works around the STOVE launcher (Korean Lost Ark client) crashing with no message at the update-check step under Wine on Linux.
+Works around the STOVE launcher (Korean Lost Ark client) crashing with no message at the update-check step under Wine on Ubuntu.
 
 STOVE and the game are Korean software: the launcher UI, this script's notifications, and its messages are all Korean. Where you have to recognise Korean text, it is quoted and translated below.
 
 ## Install
 
-Download `STOVE-launcher-fix.desktop` from [Releases](../../../releases/latest) and run it. If your desktop shows an untrusted-launcher dialog, click **Trust and Launch**.
-
-It backs up the STOVE launcher script you already have and installs itself in its place. After that you click your STOVE shortcut as usual.
+Download the `.deb` from [Releases](../../../releases/latest) and double-click it. App Center opens; press **Install**, then start **STOVE launcher fix** from your applications list.
 
 Once the launcher window opens, press the **게임실행** (Start Game) button. This script only pre-aligns the version number to avoid the crash; it does not download patch files. The actual game files are updated by the integrity check that 게임실행 runs.
 
