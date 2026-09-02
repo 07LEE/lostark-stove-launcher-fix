@@ -1,0 +1,12 @@
+*.log
+/dist/
+
+.claude/settings.local.json
+.claude/*.local.json
+.codex/*.local.json
+
+.vscode/
+.idea/
+.DS_Store
+*~
+*.swp

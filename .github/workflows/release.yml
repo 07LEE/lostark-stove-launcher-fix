@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  # GitHub의 Actions 탭에서 "Run workflow" 버튼을 누르면 그날 날짜로 릴리즈한다.
+  workflow_dispatch:
+  # 태그를 직접 붙여 올릴 수도 있다.
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build single-file installer (.desktop)
+        run: |
+          chmod +x scripts/build-installer.sh
+          ./scripts/build-installer.sh
+
+      - name: Verify installer payload
+        run: |
+          set -euo pipefail
+          # Exec= 안의 base64를 다시 꺼내 원본 스크립트와 일치하는지, 그리고
+          # 꺼낸 스크립트의 문법이 온전한지 확인한다.
+          payload="$(grep -m1 '^Exec=' dist/STOVE-launcher-fix.desktop \
+            | sed 's/.*base64 -d <<< "//; s/".*//')"
+          printf '%s' "$payload" | base64 -d > /tmp/decoded.sh
+          cmp /tmp/decoded.sh stove-launcher.sh
+          bash -n /tmp/decoded.sh
+          echo "payload OK"
+
+      - name: Decide release tag
+        id: tag
+        run: |
+          set -euo pipefail
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            tag="${{ github.ref_name }}"
+          else
+            # 한국 시간 기준 날짜. 같은 날 다시 올리면 .1, .2 로 이어붙인다.
+            base="$(TZ=Asia/Seoul date +%Y.%m.%d)"
+            tag="$base"
+            n=0
+            while git rev-parse -q --verify "refs/tags/$tag" >/dev/null; do
+              n=$((n + 1))
+              tag="$base.$n"
+            done
+          fi
+          echo "name=$tag" >> "$GITHUB_OUTPUT"
+          echo "릴리즈 태그: $tag"
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.name }}
+          name: ${{ steps.tag.outputs.name }}
+          files: dist/STOVE-launcher-fix.desktop
+          generate_release_notes: true
