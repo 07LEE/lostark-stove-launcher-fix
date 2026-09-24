@@ -492,7 +492,9 @@ for attempt in $(seq 1 "$max_attempts"); do
 
     log "attempt $attempt: launching STOVE.exe"
     run_start=$SECONDS
-    "$WINE_BIN" "$STOVE_DIR/STOVE.exe" >/dev/null 2>&1
+    # 락 fd(9)를 넘기지 않는다. wineserver 같은 백그라운드 프로세스가 물고 있으면 STOVE가
+    # 죽어도 락이 안 풀려서 다음 실행이 전부 "이미 실행 중"으로 막힌다.
+    "$WINE_BIN" "$STOVE_DIR/STOVE.exe" >/dev/null 2>&1 9>&-
     run_time=$(( SECONDS - run_start ))
     [ "$run_time" -lt "$shortest_run" ] && shortest_run=$run_time
     log "attempt $attempt: STOVE.exe exited after ${run_time}s"
