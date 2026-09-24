@@ -5,20 +5,20 @@ description: Diagnose and install the workaround for the STOVE launcher (Korean 
 
 This skill installs an existing, tested workaround on the user's machine. It does not invent a new one.
 
-**Find the repository root first.** This skill may have been installed on its own, away from the repository. Locate the `lostark-stove-launcher-fix` repository root — the directory holding `stove-launcher.sh` and `README.md` — and work from that absolute path. If it is not present, ask the user before cloning:
+Find the repository root first. This skill may have been installed on its own, away from the repository. Locate the `lostark-stove-launcher-fix` repository root — the directory holding `stove-launcher.sh` and `README.md` — and work from that absolute path. If it is not present, ask the user before cloning:
 
 ```
 git clone https://github.com/07LEE/lostark-stove-launcher-fix.git
 ```
 
-**Do not reimplement the workaround.** `stove-launcher.sh` already handles it: it reads the newest version number STOVE cached, writes it into the local manifest so the crashing comparison never runs, and launches the game. It also installs itself, detects the Wine prefix, and asks the user through `zenity` dialogs when it cannot. Your job is only to handle what that script cannot work out on its own, and then let it run. Never edit `GameManifest_45.upf` by hand and never write a replacement sync routine.
+Do not reimplement the workaround. `stove-launcher.sh` already handles it: it reads the newest version number STOVE cached, writes it into the local manifest so the crashing comparison never runs, and launches the game. It also installs itself, detects the Wine prefix, and asks the user through zenity dialogs when it cannot. Your job is only to handle what that script cannot work out on its own, and then let it run. Never edit `GameManifest_45.upf` by hand and never write a replacement sync routine.
 
 ## 1. Diagnose (read only — change nothing yet)
 
 1. Desktop environment: `echo $XDG_CURRENT_DESKTOP`, `echo $DISPLAY $WAYLAND_DISPLAY`.
 2. Find every STOVE shortcut — do not assume there is one:
    ```
-   find "$HOME/.local/share/applications" "$HOME/Desktop" -maxdepth 1 -iname '*stove*.desktop' 2>/dev/null
+   find "$HOME/.local/share/applications" "$HOME/Desktop" "$(xdg-user-dir DESKTOP)" -maxdepth 1 -iname '*stove*.desktop' 2>/dev/null
    ```
    Wine's own installers also write entries under `~/.local/share/applications/wine/Programs/`, which that search does not reach. Look there too, and consider Lutris (`~/.local/share/lutris/`), Bottles (`~/.local/share/bottles/`, `~/.var/app/com.usebottles.bottles/`), Flatpak Wine (`~/.var/app/org.winehq.Wine/`) and Steam (`~/.local/share/Steam/steamapps/compatdata/`). Asking the user how they installed STOVE is usually faster than guessing — ask early.
 3. Read the `Exec=` target of each shortcut and work out the Wine prefix, the Wine build in use, and the STOVE folder (normally `<prefix>/drive_c/ProgramData/Smilegate/STOVE`).
@@ -39,7 +39,7 @@ Run the repository's `stove-launcher.sh`. Do not write a new script.
   : "${STOVE_GM_CACHE_DIR:=/actual/GameManifest/folder}"
   ```
   The full list of settings is in the comment block at the top of `stove-launcher.sh`.
-- **If the game is launched through a tool's own configuration rather than a `.desktop` file** — a Lutris pre-launch script, a Bottles entry — explain how to hook `stove-launcher.sh` in and let the user decide. Do not edit that tool's configuration without asking.
+- If the game is launched through a tool's own configuration rather than a `.desktop` file — a Lutris pre-launch script, a Bottles entry — explain how to hook `stove-launcher.sh` in and let the user decide. Do not edit that tool's configuration without asking.
 - If the manifest layout itself differs from what the script assumes (no `45_`-prefixed cache files, a different folder structure), stop and explain the situation instead of forcing a fit.
 
 ## 3. Verify
